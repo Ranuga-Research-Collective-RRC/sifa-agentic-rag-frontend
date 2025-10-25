@@ -89,8 +89,6 @@ Once you've configured the endpoint:
 2. If successful, you'll see your agents available in the chat interface
 3. If there are connection issues, check that your AgentOS is running and accessible. Check out the troubleshooting guide [here](https://docs.agno.com/faq/agentos-connection)
 
-
-
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
