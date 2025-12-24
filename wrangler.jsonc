@@ -1,0 +1,18 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "sifa-agentic-rag",
+	"account_id": "6503f7d355399abee9e748d3100675d4",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2024-09-23",
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [
+		{ "pattern": "sifa-agentic-rag.prdai.dev", "custom_domain": true }
+	],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"vars": {
+		"NEXT_PUBLIC_API_URL": "https://sifa-agentic-rag-core.prdai.dev"
+	}
+}
