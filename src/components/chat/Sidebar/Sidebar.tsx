@@ -1,18 +1,14 @@
 'use client'
 import { Button } from '@/components/ui/button'
-import { ModeSelector } from '@/components/chat/Sidebar/ModeSelector'
-import { EntitySelector } from '@/components/chat/Sidebar/EntitySelector'
 import useChatActions from '@/hooks/useChatActions'
 import { useStore } from '@/store'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import Icon from '@/components/ui/icon'
-import { getProviderIcon } from '@/lib/modelProvider'
 import Sessions from './Sessions'
-import { isValidUrl } from '@/lib/utils'
+import { isValidUrl, truncateText } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useQueryState } from 'nuqs'
-import { truncateText } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const ENDPOINT_PLACEHOLDER = 'NO ENDPOINT ADDED'
@@ -39,16 +35,6 @@ const NewChatButton = ({
     <Icon type="plus-icon" size="xs" className="text-background" />
     <span className="uppercase">New Chat</span>
   </Button>
-)
-
-const ModelDisplay = ({ model }: { model: string }) => (
-  <div className="flex h-9 w-full items-center gap-3 rounded-xl border border-primary/15 bg-accent p-3 text-xs font-medium uppercase text-muted">
-    {(() => {
-      const icon = getProviderIcon(model)
-      return icon ? <Icon type={icon} className="shrink-0" size="xs" /> : null
-    })()}
-    {model}
-  </div>
 )
 
 const Endpoint = () => {
@@ -207,20 +193,17 @@ const Sidebar = () => {
     messages,
     selectedEndpoint,
     isEndpointActive,
-    selectedModel,
     hydrated,
     isEndpointLoading,
-    mode
+    isWarmingUp
   } = useStore()
   const [isMounted, setIsMounted] = useState(false)
-  const [agentId] = useQueryState('agent')
-  const [teamId] = useQueryState('team')
 
   useEffect(() => {
     setIsMounted(true)
 
     if (hydrated) initialize()
-  }, [selectedEndpoint, initialize, hydrated, mode])
+  }, [selectedEndpoint, initialize, hydrated])
 
   const handleNewChat = () => {
     clearChat()
@@ -264,7 +247,39 @@ const Sidebar = () => {
         {isMounted && (
           <>
             <Endpoint />
-            {isEndpointActive && (
+            {isEndpointLoading && (
+              <motion.div
+                className="flex w-full flex-col items-start gap-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, ease: 'easeInOut' }}
+              >
+                {isWarmingUp && (
+                  <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2 text-xs text-muted-foreground">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        ease: 'linear'
+                      }}
+                    >
+                      <Icon type="refresh" size="xs" />
+                    </motion.div>
+                    <span>Warming up server...</span>
+                  </div>
+                )}
+                <div className="flex w-full flex-col gap-2">
+                  {Array.from({ length: 2 }).map((_, index) => (
+                    <Skeleton
+                      key={index}
+                      className="h-9 w-full rounded-xl"
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            {isEndpointActive && !isEndpointLoading && (
               <>
                 <motion.div
                   className="flex w-full flex-col items-start gap-2"
@@ -273,26 +288,13 @@ const Sidebar = () => {
                   transition={{ duration: 0.5, ease: 'easeInOut' }}
                 >
                   <div className="text-xs font-medium uppercase text-primary">
-                    Mode
+                    Active Agent
                   </div>
-                  {isEndpointLoading ? (
-                    <div className="flex w-full flex-col gap-2">
-                      {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton
-                          key={index}
-                          className="h-9 w-full rounded-xl"
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <ModeSelector />
-                      <EntitySelector />
-                      {selectedModel && (agentId || teamId) && (
-                        <ModelDisplay model={selectedModel} />
-                      )}
-                    </>
-                  )}
+                  <div className="flex h-9 w-full items-center gap-3 rounded-xl border border-primary/15 bg-accent p-3 text-xs font-medium text-muted">
+                    <Icon type="agent" size="xs" className="shrink-0" />
+                    <span className="truncate">Skills Classification</span>
+                    <div className="ml-auto size-2 shrink-0 rounded-full bg-positive" />
+                  </div>
                 </motion.div>
                 <Sessions />
               </>

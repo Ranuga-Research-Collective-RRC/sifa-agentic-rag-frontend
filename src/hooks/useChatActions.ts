@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useStore } from '../store'
 
 import { AgentDetails, TeamDetails, type ChatMessage } from '@/types/os'
-import { getAgentsAPI, getStatusAPI, getTeamsAPI } from '@/api/os'
+import { getAgentsAPI, getStatusAPI, getTeamsAPI, warmupAPI } from '@/api/os'
 import { useQueryState } from 'nuqs'
 
 const useChatActions = () => {
@@ -14,6 +14,7 @@ const useChatActions = () => {
   const setMessages = useStore((state) => state.setMessages)
   const setIsEndpointActive = useStore((state) => state.setIsEndpointActive)
   const setIsEndpointLoading = useStore((state) => state.setIsEndpointLoading)
+  const setIsWarmingUp = useStore((state) => state.setIsWarmingUp)
   const setAgents = useStore((state) => state.setAgents)
   const setTeams = useStore((state) => state.setTeams)
   const setSelectedModel = useStore((state) => state.setSelectedModel)
@@ -73,6 +74,11 @@ const useChatActions = () => {
 
   const initialize = useCallback(async () => {
     setIsEndpointLoading(true)
+    setIsWarmingUp(true)
+
+    // Fire warmup request immediately (don't await - let it run in background)
+    warmupAPI(selectedEndpoint).finally(() => setIsWarmingUp(false))
+
     try {
       const status = await getStatus()
       let agents: AgentDetails[] = []
@@ -163,6 +169,7 @@ const useChatActions = () => {
     getTeams,
     setIsEndpointActive,
     setIsEndpointLoading,
+    setIsWarmingUp,
     setAgents,
     setTeams,
     setAgentId,
@@ -171,7 +178,8 @@ const useChatActions = () => {
     setTeamId,
     setDbId,
     agentId,
-    teamId
+    teamId,
+    selectedEndpoint
   ])
 
   return {

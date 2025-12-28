@@ -29,6 +29,16 @@ export const getStatusAPI = async (base: string): Promise<number> => {
   return response.status
 }
 
+export const warmupAPI = async (base: string): Promise<void> => {
+  try {
+    await fetch(APIRoutes.Warmup(base), {
+      method: 'GET'
+    })
+  } catch {
+    // Silently fail - warmup is best-effort
+  }
+}
+
 export const getAllSessionsAPI = async (
   base: string,
   type: 'agent' | 'team',

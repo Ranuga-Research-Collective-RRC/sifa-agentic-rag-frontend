@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { TextArea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -9,13 +9,20 @@ import { useQueryState } from 'nuqs'
 import Icon from '@/components/ui/icon'
 
 const ChatInput = () => {
-  const { chatInputRef } = useStore()
+  const { chatInputRef, pendingPrompt, setPendingPrompt } = useStore()
 
   const { handleStreamResponse } = useAIChatStreamHandler()
   const [selectedAgent] = useQueryState('agent')
   const [teamId] = useQueryState('team')
   const [inputMessage, setInputMessage] = useState('')
   const isStreaming = useStore((state) => state.isStreaming)
+
+  useEffect(() => {
+    if (pendingPrompt) {
+      setInputMessage(pendingPrompt)
+      setPendingPrompt('')
+    }
+  }, [pendingPrompt, setPendingPrompt])
   const handleSubmit = async () => {
     if (!inputMessage.trim()) return
 

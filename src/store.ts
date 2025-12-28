@@ -13,6 +13,8 @@ interface Store {
   setHydrated: () => void
   streamingErrorMessage: string
   setStreamingErrorMessage: (streamingErrorMessage: string) => void
+  pendingPrompt: string
+  setPendingPrompt: (prompt: string) => void
   endpoints: {
     endpoint: string
     id__endpoint: string
@@ -29,6 +31,8 @@ interface Store {
   setIsEndpointActive: (isActive: boolean) => void
   isEndpointLoading: boolean
   setIsEndpointLoading: (isLoading: boolean) => void
+  isWarmingUp: boolean
+  setIsWarmingUp: (isWarmingUp: boolean) => void
   messages: ChatMessage[]
   setMessages: (
     messages: ChatMessage[] | ((prevMessages: ChatMessage[]) => ChatMessage[])
@@ -62,6 +66,8 @@ export const useStore = create<Store>()(
       streamingErrorMessage: '',
       setStreamingErrorMessage: (streamingErrorMessage) =>
         set(() => ({ streamingErrorMessage })),
+      pendingPrompt: '',
+      setPendingPrompt: (prompt) => set(() => ({ pendingPrompt: prompt })),
       endpoints: [],
       setEndpoints: (endpoints) => set(() => ({ endpoints })),
       isStreaming: false,
@@ -72,6 +78,8 @@ export const useStore = create<Store>()(
       isEndpointLoading: true,
       setIsEndpointLoading: (isLoading) =>
         set(() => ({ isEndpointLoading: isLoading })),
+      isWarmingUp: false,
+      setIsWarmingUp: (isWarmingUp) => set(() => ({ isWarmingUp })),
       messages: [],
       setMessages: (messages) =>
         set((state) => ({
