@@ -61,22 +61,6 @@ export interface Model {
   provider: string
 }
 
-export interface Agent {
-  agent_id: string
-  name: string
-  description: string
-  model: Model
-  storage?: boolean
-}
-
-export interface Team {
-  team_id: string
-  name: string
-  description: string
-  model: Model
-  storage?: boolean
-}
-
 interface MessageContext {
   query: string
   docs?: Array<Record<string, object>>
@@ -88,7 +72,6 @@ export enum RunEvent {
   RunContent = 'RunContent',
   RunCompleted = 'RunCompleted',
   RunError = 'RunError',
-  RunOutput = 'RunOutput',
   UpdatingMemory = 'UpdatingMemory',
   ToolCallStarted = 'ToolCallStarted',
   ToolCallCompleted = 'ToolCallCompleted',
@@ -97,22 +80,7 @@ export enum RunEvent {
   ReasoningStarted = 'ReasoningStarted',
   ReasoningStep = 'ReasoningStep',
   ReasoningCompleted = 'ReasoningCompleted',
-  RunCancelled = 'RunCancelled',
-  RunPaused = 'RunPaused',
-  RunContinued = 'RunContinued',
-  // Team Events
-  TeamRunStarted = 'TeamRunStarted',
-  TeamRunContent = 'TeamRunContent',
-  TeamRunCompleted = 'TeamRunCompleted',
-  TeamRunError = 'TeamRunError',
-  TeamRunCancelled = 'TeamRunCancelled',
-  TeamToolCallStarted = 'TeamToolCallStarted',
-  TeamToolCallCompleted = 'TeamToolCallCompleted',
-  TeamReasoningStarted = 'TeamReasoningStarted',
-  TeamReasoningStep = 'TeamReasoningStep',
-  TeamReasoningCompleted = 'TeamReasoningCompleted',
-  TeamMemoryUpdateStarted = 'TeamMemoryUpdateStarted',
-  TeamMemoryUpdateCompleted = 'TeamMemoryUpdateCompleted'
+  RunCancelled = 'RunCancelled'
 }
 
 export interface ResponseAudio {
@@ -121,10 +89,6 @@ export interface ResponseAudio {
   transcript?: string
   channels?: number
   sample_rate?: number
-}
-
-export interface NewRunResponse {
-  status: 'RUNNING' | 'PAUSED' | 'CANCELLED'
 }
 
 export interface RunResponseContent {
@@ -177,11 +141,6 @@ export interface AgentExtraData {
   references?: ReferenceData[]
 }
 
-export interface AgentExtraData {
-  reasoning_messages?: ReasoningMessage[]
-  references?: ReferenceData[]
-}
-
 export interface ReasoningMessage {
   role: 'user' | 'tool' | 'system' | 'assistant'
   content: string | null
@@ -209,23 +168,6 @@ export interface ChatMessage {
   videos?: VideoData[]
   audio?: AudioData[]
   response_audio?: ResponseAudio
-}
-
-export interface AgentDetails {
-  id: string
-  name?: string
-  db_id?: string
-  // Model
-  model?: Model
-}
-
-export interface TeamDetails {
-  id: string
-  name?: string
-  db_id?: string
-
-  // Model
-  model?: Model
 }
 
 export interface ImageData {
@@ -262,47 +204,4 @@ export interface Reference {
     chunk_size: number
   }
   name: string
-}
-
-export interface SessionEntry {
-  session_id: string
-  session_name: string
-  created_at: number
-  updated_at?: number
-}
-
-export interface Pagination {
-  page: number
-  limit: number
-  total_pages: number
-  total_count: number
-}
-
-export interface Sessions extends SessionEntry {
-  data: SessionEntry[]
-  meta: Pagination
-}
-
-export interface ChatEntry {
-  message: {
-    role: 'user' | 'system' | 'tool' | 'assistant'
-    content: string
-    created_at: number
-  }
-  response: {
-    content: string
-    tools?: ToolCall[]
-    extra_data?: {
-      reasoning_steps?: ReasoningSteps[]
-      reasoning_messages?: ReasoningMessage[]
-      references?: ReferenceData[]
-    }
-    images?: ImageData[]
-    videos?: VideoData[]
-    audio?: AudioData[]
-    response_audio?: {
-      transcript?: string
-    }
-    created_at: number
-  }
 }

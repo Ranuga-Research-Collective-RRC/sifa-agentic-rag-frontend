@@ -46,13 +46,10 @@ const ChatBlankState = () => {
           <h1 className="text-3xl font-semibold tracking-tight">
             SFIA Skills Classification
           </h1>
-          <p className="text-muted-foreground text-base">
-            Powered by the{' '}
-            <span className="font-medium text-primary">
-              Skills Framework for the Information Age (SFIA 8)
-            </span>
-            . Analyze job descriptions, courses, or skill statements to identify
-            the matching skill category and responsibility level.
+          <p className="text-muted-foreground text-sm">
+            Maps job roles and skills to{' '}
+            <span className="font-medium text-primary">SFIA 9</span> categories
+            and responsibility levels.
           </p>
         </motion.div>
 
