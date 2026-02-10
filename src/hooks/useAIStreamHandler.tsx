@@ -4,11 +4,7 @@ import { APIRoutes } from '@/api/routes'
 
 import useChatActions from '@/hooks/useChatActions'
 import { useStore } from '../store'
-import { RunEvent, RunResponseContent, type RunResponse } from '@/types/os'
 import { constructEndpointUrl } from '@/lib/constructEndpointUrl'
-import useAIResponseStream from './useAIResponseStream'
-import { ToolCall } from '@/types/os'
-import { getJsonMarkdown } from '@/lib/utils'
 
 const useAIChatStreamHandler = () => {
   const setMessages = useStore((state) => state.setMessages)
@@ -17,79 +13,6 @@ const useAIChatStreamHandler = () => {
     (state) => state.setStreamingErrorMessage
   )
   const setIsStreaming = useStore((state) => state.setIsStreaming)
-  const { streamResponse } = useAIResponseStream()
-
-  const updateMessagesWithErrorState = useCallback(() => {
-    setMessages((prevMessages) => {
-      const newMessages = [...prevMessages]
-      const lastMessage = newMessages[newMessages.length - 1]
-      if (lastMessage && lastMessage.role === 'agent') {
-        lastMessage.streamingError = true
-      }
-      return newMessages
-    })
-  }, [setMessages])
-
-  /**
-   * Processes a new tool call and adds it to the message
-   * @param toolCall - The tool call to add
-   * @param prevToolCalls - The previous tool calls array
-   * @returns Updated tool calls array
-   */
-  const processToolCall = useCallback(
-    (toolCall: ToolCall, prevToolCalls: ToolCall[] = []) => {
-      const toolCallId =
-        toolCall.tool_call_id || `${toolCall.tool_name}-${toolCall.created_at}`
-
-      const existingToolCallIndex = prevToolCalls.findIndex(
-        (tc) =>
-          (tc.tool_call_id && tc.tool_call_id === toolCall.tool_call_id) ||
-          (!tc.tool_call_id &&
-            toolCall.tool_name &&
-            toolCall.created_at &&
-            `${tc.tool_name}-${tc.created_at}` === toolCallId)
-      )
-      if (existingToolCallIndex >= 0) {
-        const updatedToolCalls = [...prevToolCalls]
-        updatedToolCalls[existingToolCallIndex] = {
-          ...updatedToolCalls[existingToolCallIndex],
-          ...toolCall
-        }
-        return updatedToolCalls
-      } else {
-        return [...prevToolCalls, toolCall]
-      }
-    },
-    []
-  )
-
-  /**
-   * Processes tool calls from a chunk, handling both single tool object and tools array formats
-   * @param chunk - The chunk containing tool call data
-   * @param existingToolCalls - The existing tool calls array
-   * @returns Updated tool calls array
-   */
-  const processChunkToolCalls = useCallback(
-    (
-      chunk: RunResponseContent | RunResponse,
-      existingToolCalls: ToolCall[] = []
-    ) => {
-      let updatedToolCalls = [...existingToolCalls]
-      // Handle new single tool object format
-      if (chunk.tool) {
-        updatedToolCalls = processToolCall(chunk.tool, updatedToolCalls)
-      }
-      // Handle legacy tools array format
-      if (chunk.tools && chunk.tools.length > 0) {
-        for (const toolCall of chunk.tools) {
-          updatedToolCalls = processToolCall(toolCall, updatedToolCalls)
-        }
-      }
-
-      return updatedToolCalls
-    },
-    [processToolCall]
-  )
 
   const handleStreamResponse = useCallback(
     async (input: string | FormData) => {
@@ -129,196 +52,51 @@ const useAIChatStreamHandler = () => {
         created_at: Math.floor(Date.now() / 1000) + 1
       })
 
-      let lastContent = ''
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7777'
-        const agentId = process.env.NEXT_PUBLIC_AGENT_ID || 'skills-classification-agent'
+        const backendUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7777'
+        const agentId =
+          process.env.NEXT_PUBLIC_AGENT_ID || 'skills-classification-agent'
         const endpointUrl = constructEndpointUrl(backendUrl)
 
-        const RunUrl = APIRoutes.AgentRun(endpointUrl).replace(
+        const runUrl = APIRoutes.AgentRun(endpointUrl).replace(
           '{agent_id}',
           agentId
         )
 
-        formData.append('stream', 'true')
+        const response = await fetch(runUrl, {
+          method: 'POST',
+          body: formData
+        })
 
-        await streamResponse({
-          apiUrl: RunUrl,
-          requestBody: formData,
-          onChunk: (chunk: RunResponse) => {
-            if (
-              chunk.event === RunEvent.RunStarted ||
-              chunk.event === RunEvent.ReasoningStarted
-            ) {
-              // No-op - backend handles session ID
-            } else if (
-              chunk.event === RunEvent.ToolCallStarted ||
-              chunk.event === RunEvent.ToolCallCompleted
-            ) {
-              setMessages((prevMessages) => {
-                const newMessages = [...prevMessages]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage && lastMessage.role === 'agent') {
-                  lastMessage.tool_calls = processChunkToolCalls(
-                    chunk,
-                    lastMessage.tool_calls
-                  )
-                }
-                return newMessages
-              })
-            } else if (chunk.event === RunEvent.RunContent) {
-              setMessages((prevMessages) => {
-                const newMessages = [...prevMessages]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (
-                  lastMessage &&
-                  lastMessage.role === 'agent' &&
-                  typeof chunk.content === 'string'
-                ) {
-                  const uniqueContent = chunk.content.replace(lastContent, '')
-                  lastMessage.content += uniqueContent
-                  lastContent = chunk.content
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || 'Request failed')
+        }
 
-                  // Handle tool calls streaming
-                  lastMessage.tool_calls = processChunkToolCalls(
-                    chunk,
-                    lastMessage.tool_calls
-                  )
-                  if (chunk.extra_data?.reasoning_steps) {
-                    lastMessage.extra_data = {
-                      ...lastMessage.extra_data,
-                      reasoning_steps: chunk.extra_data.reasoning_steps
-                    }
-                  }
+        const result = await response.json()
 
-                  if (chunk.extra_data?.references) {
-                    lastMessage.extra_data = {
-                      ...lastMessage.extra_data,
-                      references: chunk.extra_data.references
-                    }
-                  }
-
-                  lastMessage.created_at =
-                    chunk.created_at ?? lastMessage.created_at
-                  if (chunk.images) {
-                    lastMessage.images = chunk.images
-                  }
-                  if (chunk.videos) {
-                    lastMessage.videos = chunk.videos
-                  }
-                  if (chunk.audio) {
-                    lastMessage.audio = chunk.audio
-                  }
-                } else if (
-                  lastMessage &&
-                  lastMessage.role === 'agent' &&
-                  typeof chunk?.content !== 'string' &&
-                  chunk.content !== null
-                ) {
-                  const jsonBlock = getJsonMarkdown(chunk?.content)
-
-                  lastMessage.content += jsonBlock
-                  lastContent = jsonBlock
-                } else if (
-                  chunk.response_audio?.transcript &&
-                  typeof chunk.response_audio?.transcript === 'string'
-                ) {
-                  const transcript = chunk.response_audio.transcript
-                  lastMessage.response_audio = {
-                    ...lastMessage.response_audio,
-                    transcript:
-                      lastMessage.response_audio?.transcript + transcript
-                  }
-                }
-                return newMessages
-              })
-            } else if (chunk.event === RunEvent.ReasoningStep) {
-              setMessages((prevMessages) => {
-                const newMessages = [...prevMessages]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage && lastMessage.role === 'agent') {
-                  const existingSteps =
-                    lastMessage.extra_data?.reasoning_steps ?? []
-                  const incomingSteps = chunk.extra_data?.reasoning_steps ?? []
-                  lastMessage.extra_data = {
-                    ...lastMessage.extra_data,
-                    reasoning_steps: [...existingSteps, ...incomingSteps]
-                  }
-                }
-                return newMessages
-              })
-            } else if (chunk.event === RunEvent.ReasoningCompleted) {
-              setMessages((prevMessages) => {
-                const newMessages = [...prevMessages]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (lastMessage && lastMessage.role === 'agent') {
-                  if (chunk.extra_data?.reasoning_steps) {
-                    lastMessage.extra_data = {
-                      ...lastMessage.extra_data,
-                      reasoning_steps: chunk.extra_data.reasoning_steps
-                    }
-                  }
-                }
-                return newMessages
-              })
-            } else if (chunk.event === RunEvent.RunError) {
-              updateMessagesWithErrorState()
-              const errorContent = (chunk.content as string) || 'Error during run'
-              setStreamingErrorMessage(errorContent)
-            } else if (chunk.event === RunEvent.UpdatingMemory) {
-              // No-op for now; could surface a lightweight UI indicator in the future
-            } else if (chunk.event === RunEvent.RunCompleted) {
-              setMessages((prevMessages) => {
-                const newMessages = prevMessages.map((message, index) => {
-                  if (
-                    index === prevMessages.length - 1 &&
-                    message.role === 'agent'
-                  ) {
-                    let updatedContent: string
-                    if (typeof chunk.content === 'string') {
-                      updatedContent = chunk.content
-                    } else {
-                      try {
-                        updatedContent = JSON.stringify(chunk.content)
-                      } catch {
-                        updatedContent = 'Error parsing response'
-                      }
-                    }
-                    return {
-                      ...message,
-                      content: updatedContent,
-                      tool_calls: processChunkToolCalls(
-                        chunk,
-                        message.tool_calls
-                      ),
-                      images: chunk.images ?? message.images,
-                      videos: chunk.videos ?? message.videos,
-                      response_audio: chunk.response_audio,
-                      created_at: chunk.created_at ?? message.created_at,
-                      extra_data: {
-                        reasoning_steps:
-                          chunk.extra_data?.reasoning_steps ??
-                          message.extra_data?.reasoning_steps,
-                        references:
-                          chunk.extra_data?.references ??
-                          message.extra_data?.references
-                      }
-                    }
-                  }
-                  return message
-                })
-                return newMessages
-              })
-            }
-          },
-          onError: (error) => {
-            updateMessagesWithErrorState()
-            setStreamingErrorMessage(error.message)
-          },
-          onComplete: () => {}
+        setMessages((prevMessages) => {
+          const newMessages = [...prevMessages]
+          const lastMessage = newMessages[newMessages.length - 1]
+          if (lastMessage && lastMessage.role === 'agent') {
+            lastMessage.content =
+              typeof result.content === 'string'
+                ? result.content
+                : JSON.stringify(result.content)
+            lastMessage.created_at = result.created_at ?? lastMessage.created_at
+          }
+          return newMessages
         })
       } catch (error) {
-        updateMessagesWithErrorState()
+        setMessages((prevMessages) => {
+          const newMessages = [...prevMessages]
+          const lastMessage = newMessages[newMessages.length - 1]
+          if (lastMessage && lastMessage.role === 'agent') {
+            lastMessage.streamingError = true
+          }
+          return newMessages
+        })
         setStreamingErrorMessage(
           error instanceof Error ? error.message : String(error)
         )
@@ -330,12 +108,9 @@ const useAIChatStreamHandler = () => {
     [
       setMessages,
       addMessage,
-      updateMessagesWithErrorState,
-      streamResponse,
       setStreamingErrorMessage,
       setIsStreaming,
-      focusChatInput,
-      processChunkToolCalls
+      focusChatInput
     ]
   )
 
