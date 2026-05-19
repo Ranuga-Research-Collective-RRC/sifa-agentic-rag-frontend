@@ -30,8 +30,7 @@ import type {
   PreparedTextProps
 } from './types'
 
-import { HEADING_SIZES } from '../Heading/constants'
-import { PARAGRAPH_SIZES } from '../Paragraph/constants'
+import { HEADING_SIZES, PARAGRAPH_SIZES } from './constants'
 
 const filterProps = (props: object) => {
   const newProps = { ...props }

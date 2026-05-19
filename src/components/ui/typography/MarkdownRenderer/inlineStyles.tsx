@@ -24,7 +24,7 @@ import type {
   ParagraphProps
 } from './types'
 
-import { PARAGRAPH_SIZES } from '../Paragraph/constants'
+import { PARAGRAPH_SIZES } from './constants'
 
 const filterProps = (props: object) => {
   const newProps = { ...props }
